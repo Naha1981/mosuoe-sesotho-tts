@@ -39,8 +39,19 @@ async def _respond(call_id: str, pcm: bytes, sample_rate: int) -> tuple[str, str
     return transcript, response, output_audio
 
 
+async def _send_audio(websocket: WebSocket, output_audio: bytes, text: str, message_type: str = "audio") -> None:
+    await websocket.send_json({"type": "response", "text": text})
+    await websocket.send_json(
+        {
+            "type": message_type,
+            "format": "wav",
+            "audio": base64.b64encode(output_audio).decode("ascii"),
+        }
+    )
+
+
 async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
-    """Prototype websocket protocol for provider/browser audio streaming.
+    """Realtime browser/voice-provider audio stream.
 
     Client messages:
       {"type":"start","sample_rate":16000}
@@ -49,11 +60,12 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
       {"type":"playback_finished"}
       {"type":"stop"}
 
-    Server messages include speech_started, interrupt, transcript, response and
-    audio (base64 WAV). A carrier adapter can map its media frames to this protocol.
+    Server messages include ready, started, speech_started, processing, transcript,
+    response, audio, interrupt, stopped and error.
     """
     await websocket.accept()
-    if calls.get(call_id) is None:
+    session = calls.get(call_id)
+    if session is None:
         await websocket.send_json({"type": "error", "detail": "Call session not found"})
         await websocket.close(code=4404)
         return
@@ -80,6 +92,13 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
             agent_speaking = False
             await websocket.send_json({"type": "interrupt"})
 
+    async def send_greeting() -> None:
+        nonlocal agent_speaking
+        greeting = "Lumela. Ke mothusi wa Lesotho. Nka o thusa ka eng kajeno?"
+        output_audio = await asyncio.to_thread(engine.synthesize, greeting)
+        await _send_audio(websocket, output_audio, greeting, message_type="audio")
+        agent_speaking = True
+
     async def process_utterance(pcm: bytes) -> None:
         nonlocal speaking_task, agent_speaking
         try:
@@ -89,14 +108,7 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
                 await websocket.send_json({"type": "response", "text": response})
                 return
             await websocket.send_json({"type": "transcript", "text": transcript})
-            await websocket.send_json({"type": "response", "text": response})
-            await websocket.send_json(
-                {
-                    "type": "audio",
-                    "format": "wav",
-                    "audio": base64.b64encode(output_audio).decode("ascii"),
-                }
-            )
+            await _send_audio(websocket, output_audio, response)
             agent_speaking = True
         except asyncio.CancelledError:
             raise
@@ -107,6 +119,7 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
 
     try:
         await websocket.send_json({"type": "ready", "call_id": call_id, "sample_rate": sample_rate})
+
         while True:
             message = await websocket.receive_text()
             payload = json.loads(message)
@@ -115,9 +128,10 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
             if kind == "start":
                 sample_rate = int(payload.get("sample_rate", 16000))
                 if sample_rate != 16000:
-                    await websocket.send_json({"type": "error", "detail": "Prototype stream requires 16000 Hz PCM"})
+                    await websocket.send_json({"type": "error", "detail": "Realtime stream requires 16000 Hz PCM"})
                     continue
                 await websocket.send_json({"type": "started", "sample_rate": sample_rate})
+                await send_greeting()
                 continue
 
             if kind == "playback_started":
@@ -126,6 +140,7 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
 
             if kind == "playback_finished":
                 agent_speaking = False
+                await websocket.send_json({"type": "listening"})
                 continue
 
             if kind == "audio":
