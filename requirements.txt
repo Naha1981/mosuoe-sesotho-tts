@@ -1,0 +1,11 @@
+fastapi>=0.115
+uvicorn[standard]>=0.34
+python-multipart>=0.0.20
+numpy>=2.1
+soundfile>=0.13
+scipy>=1.15
+torch>=2.6
+transformers>=5.0
+sentencepiece>=0.2
+google-genai>=1.0
+python-dotenv>=1.0
