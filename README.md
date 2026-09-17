@@ -58,15 +58,28 @@ The first ASR/TTS request downloads model weights from Hugging Face.
 - The backend transcribes the speech, generates a Sesotho response, synthesizes audio, and returns the complete turn.
 - The UI shows the recognised text and the agent response for verification.
 
+## Lesotho speech acceptance harness
+
+The `evaluation/` folder provides the first measurement layer for the core requirement: understanding real Sesotho spoken by people in Lesotho.
+
+Create a consented recording set and copy `evaluation/manifest.example.jsonl` to a working manifest. Each record stores an audio path, human-verified reference transcript, anonymised speaker ID, district/location label, recording environment, and whether the audio is phone-like.
+
+Run:
+
+```powershell
+uv run python evaluation/evaluate_asr.py --manifest evaluation/manifest.jsonl
+```
+
+The benchmark reports per-recording WER and an aggregate WER in `evaluation/results/asr_report.json`. It deliberately does not hard-code a final production threshold until representative Lesotho recordings have been collected and reviewed.
+
 ## Next engineering stages
 
-1. Collect a small, consented **Lesotho speech validation set**.
-2. Benchmark ASR against real Lesotho speakers and noisy phone-like audio.
-3. Benchmark TTS for naturalness, pronunciation and Lesotho linguistic conventions.
-4. Add barge-in / interruption handling and voice activity detection.
-5. Add a telephony adapter (SIP/provider) without changing the voice core.
-6. Add call logging, consent/disclosure, escalation-to-human and audit trails.
-7. Build a ministerial demo scenario around a non-sensitive public-service workflow.
+1. Collect a small, consented **Lesotho speech validation set** and benchmark ASR.
+2. Benchmark TTS for naturalness, pronunciation and Lesotho linguistic conventions.
+3. Add barge-in / interruption handling and voice activity detection.
+4. Add a provider-neutral telephony/media-stream adapter, then connect a suitable SIP/telephony provider.
+5. Add call logging, consent/disclosure, escalation-to-human and audit trails.
+6. Build a ministerial demo scenario around a non-sensitive public-service workflow.
 
 ## Important prototype boundary
 
