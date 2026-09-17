@@ -1,64 +1,61 @@
 ; NahaLabs Mosuoe - provider-neutral PJSIP trunk template
 ; DO NOT paste real credentials into GitHub.
-; Ask the Lesotho carrier for either:
-;   1) SIP registration credentials, or
-;   2) IP-authenticated SIP trunk details.
-;
-; The carrier must also provide the DID and the inbound routing target.
+; Ask the Lesotho carrier for either SIP registration credentials or
+; IP-authenticated SIP trunk details, plus the DID and inbound routing.
 
 [global]
 type=global
 user_agent=NahaLabs-Mosuoe
 
 ; ---- Example: registration-based trunk ----
-; Replace values supplied by the carrier.
+; Uncomment and replace values supplied by the carrier.
 ;
 ; [lesotho-provider-auth]
 ; type=auth
-auth_type=userpass
-username=<SIP_USERNAME>
-password=<SIP_PASSWORD>
+; auth_type=userpass
+; username=<SIP_USERNAME>
+; password=<SIP_PASSWORD>
 ;
 ; [lesotho-provider-aor]
 ; type=aor
-contact=sip:<SIP_PROXY_HOST>:<SIP_PROXY_PORT>
+; contact=sip:<SIP_PROXY_HOST>:<SIP_PROXY_PORT>
 ;
 ; [lesotho-provider-endpoint]
 ; type=endpoint
-transport=transport-udp
-context=from-provider
-disallow=all
-allow=ulaw,alaw
-outbound_auth=lesotho-provider-auth
-aors=lesotho-provider-aor
-direct_media=no
-rtp_symmetric=yes
-force_rport=yes
-rewrite_contact=yes
+; transport=transport-udp
+; context=from-provider
+; disallow=all
+; allow=ulaw,alaw
+; outbound_auth=lesotho-provider-auth
+; aors=lesotho-provider-aor
+; direct_media=no
+; rtp_symmetric=yes
+; force_rport=yes
+; rewrite_contact=yes
 ;
 ; [lesotho-provider-registration]
 ; type=registration
-outbound_auth=lesotho-provider-auth
-server_uri=sip:<SIP_PROXY_HOST>:<SIP_PROXY_PORT>
-client_uri=sip:<SIP_USERNAME>@<SIP_PROXY_HOST>
-contact_user=<YOUR_DID>
-retry_interval=60
-expiration=300
-forbidden_retry_interval=600
-;
+; outbound_auth=lesotho-provider-auth
+; server_uri=sip:<SIP_PROXY_HOST>:<SIP_PROXY_PORT>
+; client_uri=sip:<SIP_USERNAME>@<SIP_PROXY_HOST>
+; contact_user=<YOUR_DID>
+; retry_interval=60
+; expiration=300
+; forbidden_retry_interval=600
+
 ; ---- Example: IP-authenticated trunk ----
-; Use this instead if the carrier authenticates by public IP.
+; Uncomment and replace values supplied by the carrier.
 ;
 ; [lesotho-provider]
 ; type=endpoint
-transport=transport-udp
-context=from-provider
-disallow=all
-allow=ulaw,alaw
-direct_media=no
-rtp_symmetric=yes
-force_rport=yes
-rewrite_contact=no
+; transport=transport-udp
+; context=from-provider
+; disallow=all
+; allow=ulaw,alaw
+; direct_media=no
+; rtp_symmetric=yes
+; force_rport=yes
+; rewrite_contact=no
 ;
 ; [lesotho-provider-identify]
 ; type=identify
