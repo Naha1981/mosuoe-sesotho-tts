@@ -57,6 +57,7 @@
   let audioContext;
   let source;
   let processor;
+  let silentGain;
   let chunks = [];
   let history = [];
 
@@ -79,10 +80,13 @@
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       source = audioContext.createMediaStreamSource(stream);
       processor = audioContext.createScriptProcessor(4096, 1, 1);
+      silentGain = audioContext.createGain();
+      silentGain.gain.value = 0;
       chunks = [];
       processor.onaudioprocess = e => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
       source.connect(processor);
-      processor.connect(audioContext.destination);
+      processor.connect(silentGain);
+      silentGain.connect(audioContext.destination);
       recordBtn.disabled = true;
       stopBtn.disabled = false;
       setStatus('Listening…', true);
@@ -97,6 +101,7 @@
     setStatus('Processing…', false);
     processor.disconnect();
     source.disconnect();
+    silentGain.disconnect();
     stream.getTracks().forEach(t => t.stop());
 
     const wav = encodeWav(chunks, audioContext.sampleRate);
