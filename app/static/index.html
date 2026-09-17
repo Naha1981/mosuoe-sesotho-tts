@@ -21,10 +21,7 @@
         radial-gradient(circle at 50% 15%, rgba(106, 145, 129, .18), transparent 34%),
         #0c1112;
     }
-    .shell {
-      width: min(860px, calc(100% - 28px));
-      padding: 34px 0;
-    }
+    .shell { width: min(860px, calc(100% - 28px)); padding: 34px 0; }
     .card {
       background: rgba(20, 27, 28, .92);
       border: 1px solid rgba(255,255,255,.09);
@@ -33,55 +30,23 @@
       box-shadow: 0 30px 100px rgba(0,0,0,.35);
       backdrop-filter: blur(18px);
     }
-    .top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 20px;
-    }
-    .eyebrow {
-      margin: 0 0 8px;
-      color: #91aa9f;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-    }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+    .eyebrow { margin: 0 0 8px; color: #91aa9f; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
     h1 { margin: 0; font-size: clamp(30px, 6vw, 48px); line-height: 1; letter-spacing: -.04em; }
     .sub { margin: 12px 0 0; max-width: 560px; color: #9eaaa8; line-height: 1.6; }
     .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      min-width: 120px;
-      justify-content: center;
-      padding: 9px 12px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.04);
-      color: #c8d2cf;
-      font-size: 13px;
-      white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 9px; min-width: 120px; justify-content: center;
+      padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04); color: #c8d2cf; font-size: 13px; white-space: nowrap;
     }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #737f7c; }
     .dot.live { background: #63c58b; box-shadow: 0 0 16px rgba(99,197,139,.65); }
-    .call-area {
-      min-height: 320px;
-      display: grid;
-      place-items: center;
-      padding: 32px 0 24px;
-    }
+    .call-area { min-height: 320px; display: grid; place-items: center; padding: 32px 0 24px; }
     #call {
-      width: 142px;
-      height: 142px;
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 50%;
-      color: white;
-      background: radial-gradient(circle at 35% 28%, #789d8c, #314b40 58%, #1d2a26 100%);
+      width: 142px; height: 142px; border: 1px solid rgba(255,255,255,.12); border-radius: 50%;
+      color: white; background: radial-gradient(circle at 35% 28%, #789d8c, #314b40 58%, #1d2a26 100%);
       box-shadow: 0 0 0 0 rgba(99,197,139,.2), 0 22px 45px rgba(0,0,0,.4), inset 0 1px rgba(255,255,255,.15);
-      font-size: 17px;
-      font-weight: 800;
-      cursor: pointer;
+      font-size: 17px; font-weight: 800; cursor: pointer;
       transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
     }
     #call:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.05); }
@@ -94,13 +59,7 @@
     }
     .timer { text-align: center; margin-top: -10px; color: #81908b; font-variant-numeric: tabular-nums; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .box {
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.025);
-      border-radius: 18px;
-      padding: 16px;
-      min-height: 118px;
-    }
+    .box { border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.025); border-radius: 18px; padding: 16px; min-height: 118px; }
     .label { color: #74817e; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; margin-bottom: 9px; }
     .text { color: #dfe8e5; line-height: 1.6; }
     .conversation { margin-top: 14px; }
@@ -355,6 +314,7 @@
 
       socket = new WebSocket(`${WS_BASE}/api/calls/${callId}/stream`);
       socket.onopen = () => {
+        callBtn.disabled = false;
         socket.send(JSON.stringify({ type: 'start', sample_rate: 16000 }));
         startMicrophone();
         startTimer();
@@ -392,7 +352,10 @@
         }
       };
 
-      socket.onerror = () => setStatus('Voice connection error');
+      socket.onerror = () => {
+        callBtn.disabled = false;
+        setStatus('Voice connection error');
+      };
       socket.onclose = () => {
         if (callActive) cleanupCall(false);
       };
@@ -402,9 +365,7 @@
       await cleanupCall(false);
       alert(err.message || 'Unable to start the voice call.');
     } finally {
-      if (!callActive) {
-        callBtn.disabled = false;
-      }
+      if (!callActive) callBtn.disabled = false;
     }
   }
 
