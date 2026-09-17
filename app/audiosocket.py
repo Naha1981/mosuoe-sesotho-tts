@@ -16,11 +16,11 @@ from .vad import EnergyVAD, VADConfig
 
 AUDIO_SOCKET_HOST = "0.0.0.0"
 AUDIO_SOCKET_PORT = 9019
-AUDIO_TYPE = 0x10  # 8 kHz signed-linear PCM16 mono
+AUDIO_TYPE = 0x10
 UUID_TYPE = 0x01
 HANGUP_TYPE = 0x00
 ERROR_TYPE = 0xFF
-FRAME_BYTES_8K = 320  # 20 ms at 8 kHz, 16-bit mono
+FRAME_BYTES_8K = 320
 
 
 def _frame(kind: int, payload: bytes = b"") -> bytes:
@@ -46,12 +46,12 @@ def _wav_to_pcm(audio_wav: bytes, target_rate: int = 8000) -> bytes:
     return _resample_pcm(pcm, int(sample_rate), target_rate)
 
 
-def _pcm8k_to_wav(pcm: bytes) -> bytes:
+def _pcm_to_wav(pcm: bytes, sample_rate: int) -> bytes:
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as wav:
         wav.setnchannels(1)
         wav.setsampwidth(2)
-        wav.setframerate(8000)
+        wav.setframerate(sample_rate)
         wav.writeframes(pcm)
     return buffer.getvalue()
 
@@ -97,7 +97,7 @@ class AudioSocketConnection:
 
 async def _respond(connection: AudioSocketConnection, pcm8k: bytes) -> None:
     pcm16k = _resample_pcm(pcm8k, 8000, 16000)
-    transcript = await asyncio.to_thread(engine.transcribe, _pcm8k_to_wav(pcm16k))
+    transcript = await asyncio.to_thread(engine.transcribe, _pcm_to_wav(pcm16k, 16000))
     if not transcript:
         response = "Ke kopa o phete seo hape."
     else:
@@ -113,8 +113,7 @@ async def _respond(connection: AudioSocketConnection, pcm8k: bytes) -> None:
             session.metadata["last_response"] = response
 
     output_wav = await asyncio.to_thread(engine.synthesize, response)
-    output_pcm8k = _wav_to_pcm(output_wav, 8000)
-    await connection.send_audio(output_pcm8k)
+    await connection.send_audio(_wav_to_pcm(output_wav, 8000))
 
 
 async def handle_audiosocket(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -129,13 +128,17 @@ async def handle_audiosocket(reader: asyncio.StreamReader, writer: asyncio.Strea
             payload = await reader.readexactly(length) if length else b""
 
             if kind == UUID_TYPE:
+                if len(payload) != 16:
+                    raise ValueError("Invalid AudioSocket UUID payload")
                 connection.call_id = str(uuid.UUID(bytes=payload))
                 session = calls.create(connection.call_id)
                 session.metadata.update({"provider": "asterisk-audiosocket"})
                 greeting = "Lumela. Ke mothusi wa Lesotho. Nka o thusa ka eng kajeno?"
                 session.add_turn("model", greeting)
-                greeting_pcm = _wav_to_pcm(await asyncio.to_thread(engine.synthesize, greeting), 8000)
-                connection.playback_task = asyncio.create_task(connection.send_audio(greeting_pcm))
+                greeting_wav = await asyncio.to_thread(engine.synthesize, greeting)
+                connection.playback_task = asyncio.create_task(
+                    connection.send_audio(_wav_to_pcm(greeting_wav, 8000))
+                )
                 continue
 
             if kind == AUDIO_TYPE:
@@ -151,10 +154,7 @@ async def handle_audiosocket(reader: asyncio.StreamReader, writer: asyncio.Strea
                         )
                 continue
 
-            if kind == HANGUP_TYPE:
-                break
-
-            if kind == ERROR_TYPE:
+            if kind in (HANGUP_TYPE, ERROR_TYPE):
                 break
     except (asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError):
         pass
