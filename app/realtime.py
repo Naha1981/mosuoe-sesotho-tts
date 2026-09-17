@@ -45,6 +45,8 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
     Client messages:
       {"type":"start","sample_rate":16000}
       {"type":"audio","audio":"<base64 PCM16 mono>"}
+      {"type":"playback_started"}
+      {"type":"playback_finished"}
       {"type":"stop"}
 
     Server messages include speech_started, interrupt, transcript, response and
@@ -59,6 +61,7 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
     vad = EnergyVAD()
     sample_rate = 16000
     speaking_task: asyncio.Task | None = None
+    agent_speaking = False
 
     async def cancel_speaking() -> None:
         nonlocal speaking_task
@@ -70,8 +73,15 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
                 pass
         speaking_task = None
 
+    async def interrupt_agent() -> None:
+        nonlocal agent_speaking
+        await cancel_speaking()
+        if agent_speaking:
+            agent_speaking = False
+            await websocket.send_json({"type": "interrupt"})
+
     async def process_utterance(pcm: bytes) -> None:
-        nonlocal speaking_task
+        nonlocal speaking_task, agent_speaking
         try:
             await websocket.send_json({"type": "processing"})
             transcript, response, output_audio = await _respond(call_id, pcm, sample_rate)
@@ -87,6 +97,7 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
                     "audio": base64.b64encode(output_audio).decode("ascii"),
                 }
             )
+            agent_speaking = True
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -109,6 +120,14 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
                 await websocket.send_json({"type": "started", "sample_rate": sample_rate})
                 continue
 
+            if kind == "playback_started":
+                agent_speaking = True
+                continue
+
+            if kind == "playback_finished":
+                agent_speaking = False
+                continue
+
             if kind == "audio":
                 raw = base64.b64decode(payload.get("audio", ""), validate=True)
                 for event in vad.feed(raw):
@@ -116,6 +135,8 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
                         if speaking_task is not None and not speaking_task.done():
                             await cancel_speaking()
                             await websocket.send_json({"type": "interrupt"})
+                        elif agent_speaking:
+                            await interrupt_agent()
                         await websocket.send_json({"type": "speech_started"})
                     elif event.kind == "utterance":
                         await cancel_speaking()
@@ -124,6 +145,7 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
 
             if kind == "stop":
                 await cancel_speaking()
+                agent_speaking = False
                 await websocket.send_json({"type": "stopped"})
                 break
 
