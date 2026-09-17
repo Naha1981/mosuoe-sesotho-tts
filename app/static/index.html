@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="st">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NahaLabs — Lesotho Sesotho AI Voice Agent</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #17212b; background: #f3f5f7; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    .card { width: min(760px, calc(100% - 28px)); background: white; border-radius: 22px; padding: 28px; box-shadow: 0 12px 45px rgba(0,0,0,.10); }
+    h1 { margin: 0 0 6px; font-size: 28px; }
+    .sub { color: #62707c; margin-bottom: 22px; }
+    .status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: #eef3f0; font-size: 13px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #82909b; }
+    .dot.live { background: #16834a; }
+    .controls { display: flex; gap: 12px; margin: 24px 0; }
+    button { border: 0; border-radius: 14px; padding: 14px 20px; font-weight: 700; cursor: pointer; }
+    #record { background: #18222d; color: white; }
+    #stop { background: #e7ebee; color: #18222d; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .box { border: 1px solid #e5e9ed; border-radius: 16px; padding: 16px; margin-top: 14px; }
+    .label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #7c8791; margin-bottom: 7px; }
+    .text { min-height: 30px; line-height: 1.55; }
+    .notice { margin-top: 20px; color: #6d7780; font-size: 13px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>NahaLabs Lesotho Sesotho AI Voice Agent</h1>
+    <div class="sub">Browser prototype — speak, listen, and verify the complete voice loop.</div>
+    <div class="status"><span id="dot" class="dot"></span><span id="status">Ready</span></div>
+
+    <div class="controls">
+      <button id="record">Start speaking</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+
+    <div class="box">
+      <div class="label">What the agent heard</div>
+      <div id="heard" class="text">—</div>
+    </div>
+
+    <div class="box">
+      <div class="label">Agent response</div>
+      <div id="response" class="text">—</div>
+    </div>
+
+    <audio id="player" controls style="width:100%; margin-top:18px"></audio>
+
+    <div class="notice">
+      Prototype target: Lesotho Sesotho. The current open models support Southern Sotho, but this build does not yet claim that the synthesized accent is uniquely Lesotho. That is the next validation stage with real Lesotho speakers.
+    </div>
+  </main>
+
+<script>
+  let stream;
+  let audioContext;
+  let source;
+  let processor;
+  let chunks = [];
+  let history = [];
+
+  const recordBtn = document.getElementById('record');
+  const stopBtn = document.getElementById('stop');
+  const statusEl = document.getElementById('status');
+  const dot = document.getElementById('dot');
+  const heard = document.getElementById('heard');
+  const response = document.getElementById('response');
+  const player = document.getElementById('player');
+
+  function setStatus(text, live=false) {
+    statusEl.textContent = text;
+    dot.classList.toggle('live', live);
+  }
+
+  recordBtn.onclick = async () => {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      source = audioContext.createMediaStreamSource(stream);
+      processor = audioContext.createScriptProcessor(4096, 1, 1);
+      chunks = [];
+      processor.onaudioprocess = e => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+      source.connect(processor);
+      processor.connect(audioContext.destination);
+      recordBtn.disabled = true;
+      stopBtn.disabled = false;
+      setStatus('Listening…', true);
+    } catch (err) {
+      setStatus('Microphone permission failed');
+      alert(err.message || err);
+    }
+  };
+
+  stopBtn.onclick = async () => {
+    stopBtn.disabled = true;
+    setStatus('Processing…', false);
+    processor.disconnect();
+    source.disconnect();
+    stream.getTracks().forEach(t => t.stop());
+
+    const wav = encodeWav(chunks, audioContext.sampleRate);
+    const form = new FormData();
+    form.append('audio', wav, 'caller.wav');
+    form.append('history', JSON.stringify(history));
+
+    try {
+      const res = await fetch('/api/turn', { method: 'POST', body: form });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(detail);
+      }
+
+      const transcript = decodeHexHeader(res.headers.get('X-Transcript'));
+      const agentText = decodeHexHeader(res.headers.get('X-Response-Text'));
+      heard.textContent = transcript || '—';
+      response.textContent = agentText || '—';
+      history.push({ role: 'user', text: transcript });
+      history.push({ role: 'model', text: agentText });
+
+      const audioBlob = await res.blob();
+      player.src = URL.createObjectURL(audioBlob);
+      await player.play();
+      setStatus('Ready');
+    } catch (err) {
+      setStatus('Voice turn failed');
+      alert(err.message || err);
+    } finally {
+      recordBtn.disabled = false;
+    }
+  };
+
+  function decodeHexHeader(hex) {
+    if (!hex) return '';
+    const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(x => parseInt(x, 16)));
+    return new TextDecoder().decode(bytes);
+  }
+
+  function encodeWav(buffers, sampleRate) {
+    let length = buffers.reduce((n, b) => n + b.length, 0);
+    const buffer = new ArrayBuffer(44 + length * 2);
+    const view = new DataView(buffer);
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + length * 2, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, length * 2, true);
+
+    let offset = 44;
+    for (const chunk of buffers) {
+      for (let i = 0; i < chunk.length; i++) {
+        const s = Math.max(-1, Math.min(1, chunk[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return new Blob([view], { type: 'audio/wav' });
+  }
+
+  function writeString(view, offset, value) {
+    for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
+  }
+</script>
+</body>
+</html>
