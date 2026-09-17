@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -11,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
+from .audiosocket import start_audiosocket_server  # noqa: E402
 from .call import calls  # noqa: E402
 from .realtime import handle_realtime_call  # noqa: E402
 from .services import engine  # noqa: E402
@@ -19,10 +21,22 @@ from .telephony import CallEvent, gateway  # noqa: E402
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 
-app = FastAPI(title="NahaLabs Lesotho Sesotho AI Calling Agent", version="0.4.0")
 
-# The browser UI is deployed separately on Render as a Static Site.
-# The prototype does not use browser credentials, so wildcard CORS is sufficient.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    audio_server = await start_audiosocket_server()
+    app.state.audio_socket_server = audio_server
+    yield
+    audio_server.close()
+    await audio_server.wait_closed()
+
+
+app = FastAPI(
+    title="NahaLabs Lesotho Sesotho AI Calling Agent",
+    version="0.5.0",
+    lifespan=lifespan,
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,7 +55,13 @@ def index() -> FileResponse:
 
 @app.get("/api/health")
 def health() -> JSONResponse:
-    return JSONResponse(engine.health())
+    result = engine.health()
+    result["telephony"] = {
+        "adapter": "asterisk-audiosocket",
+        "audio_socket": "0.0.0.0:9019",
+        "status": "listening",
+    }
+    return JSONResponse(result)
 
 
 @app.post("/api/transcribe")
@@ -124,11 +144,6 @@ def call_text(call_id: str, payload: dict) -> JSONResponse:
 
 @app.post("/api/calls/{call_id}/audio")
 async def call_audio(call_id: str, audio: UploadFile = File(...)) -> StreamingResponse:
-    """Process one caller utterance inside an existing call session.
-
-    This remains useful for providers that deliver complete recordings instead
-    of a live media stream. The websocket endpoint below handles live frames.
-    """
     audio_data = await audio.read()
     if not audio_data:
         raise HTTPException(status_code=400, detail="No audio received")
