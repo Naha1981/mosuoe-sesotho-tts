@@ -53,6 +53,7 @@
   </main>
 
 <script>
+  const API_BASE = 'https://mosuoe-sesotho-tts.onrender.com';
   let stream;
   let audioContext;
   let source;
@@ -110,7 +111,7 @@
     form.append('history', JSON.stringify(history));
 
     try {
-      const res = await fetch('/api/turn', { method: 'POST', body: form });
+      const res = await fetch(`${API_BASE}/api/turn`, { method: 'POST', body: form });
       if (!res.ok) {
         const detail = await res.text();
         throw new Error(detail);
