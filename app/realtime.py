@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
 import io
 import json
 import wave
@@ -10,7 +11,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .call import calls
 from .services import engine
-from .vad import EnergyVAD, VADEvent
+from .vad import EnergyVAD
 
 
 def pcm_to_wav(pcm: bytes, sample_rate: int = 16000) -> bytes:
@@ -129,6 +130,6 @@ async def handle_realtime_call(websocket: WebSocket, call_id: str) -> None:
             await websocket.send_json({"type": "error", "detail": f"Unknown message type: {kind}"})
     except WebSocketDisconnect:
         await cancel_speaking()
-    except (ValueError, json.JSONDecodeError, base64.binascii.Error) as exc:
+    except (ValueError, json.JSONDecodeError, binascii.Error) as exc:
         await websocket.send_json({"type": "error", "detail": str(exc)})
         await websocket.close(code=4400)
