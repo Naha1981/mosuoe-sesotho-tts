@@ -1,0 +1,26 @@
+; NahaLabs Mosuoe - Asterisk inbound AI calling prototype
+; Replace <YOUR_DID> with the DID/routing supplied by the SIP provider.
+;
+; AudioSocket uses 8 kHz PCM16 by default in the dialplan application.
+; The Python bridge resamples that phone audio to 16 kHz for Simba-H and
+; resamples TTS back to 8 kHz for the telephone call.
+
+[globals]
+
+[from-provider]
+exten => <YOUR_DID>,1,NoOp(NahaLabs Mosuoe inbound call)
+ same => n,Answer()
+ same => n,Set(CHANNEL(language)=en)
+ same => n,Set(UUID=${SHELL(cat /proc/sys/kernel/random/uuid | tr -d '\\n')})
+ same => n,NoOp(AudioSocket UUID=${UUID})
+ same => n,AudioSocket(${UUID},127.0.0.1:9019)
+ same => n,Hangup()
+
+; Optional catch-all while testing provider routing.
+; Disable this after the DID is confirmed.
+[from-provider-test]
+exten => _X.,1,NoOp(NahaLabs test inbound ${EXTEN})
+ same => n,Answer()
+ same => n,Set(UUID=${SHELL(cat /proc/sys/kernel/random/uuid | tr -d '\\n')})
+ same => n,AudioSocket(${UUID},127.0.0.1:9019)
+ same => n,Hangup()
