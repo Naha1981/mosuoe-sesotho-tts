@@ -4,20 +4,21 @@ import json
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
 from .call import calls  # noqa: E402
+from .realtime import handle_realtime_call  # noqa: E402
 from .services import engine  # noqa: E402
 from .telephony import CallEvent, gateway  # noqa: E402
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 
-app = FastAPI(title="NahaLabs Lesotho Sesotho AI Calling Agent", version="0.3.0")
+app = FastAPI(title="NahaLabs Lesotho Sesotho AI Calling Agent", version="0.4.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -113,9 +114,8 @@ def call_text(call_id: str, payload: dict) -> JSONResponse:
 async def call_audio(call_id: str, audio: UploadFile = File(...)) -> StreamingResponse:
     """Process one caller utterance inside an existing call session.
 
-    This is intentionally turn-based for the prototype. A real telephony adapter
-    can later replace this endpoint with streaming media frames without changing
-    the conversation/session layer.
+    This remains useful for providers that deliver complete recordings instead
+    of a live media stream. The websocket endpoint below handles live frames.
     """
     audio_data = await audio.read()
     if not audio_data:
@@ -144,6 +144,11 @@ async def call_audio(call_id: str, audio: UploadFile = File(...)) -> StreamingRe
             "X-Response-Text": result["text"].encode("utf-8").hex(),
         },
     )
+
+
+@app.websocket("/api/calls/{call_id}/stream")
+async def call_stream(websocket: WebSocket, call_id: str) -> None:
+    await handle_realtime_call(websocket, call_id)
 
 
 @app.delete("/api/calls/{call_id}")
