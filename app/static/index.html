@@ -3,177 +3,440 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NahaLabs — Lesotho Sesotho AI Voice Agent</title>
+  <title>Mosuoe — Lesotho Sesotho Voice Agent</title>
   <style>
-    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #17212b; background: #f3f5f7; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
-    .card { width: min(760px, calc(100% - 28px)); background: white; border-radius: 22px; padding: 28px; box-shadow: 0 12px 45px rgba(0,0,0,.10); }
-    h1 { margin: 0 0 6px; font-size: 28px; }
-    .sub { color: #62707c; margin-bottom: 22px; }
-    .status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: #eef3f0; font-size: 13px; }
-    .dot { width: 9px; height: 9px; border-radius: 50%; background: #82909b; }
-    .dot.live { background: #16834a; }
-    .controls { display: flex; gap: 12px; margin: 24px 0; }
-    button { border: 0; border-radius: 14px; padding: 14px 20px; font-weight: 700; cursor: pointer; }
-    #record { background: #18222d; color: white; }
-    #stop { background: #e7ebee; color: #18222d; }
-    button:disabled { opacity: .45; cursor: not-allowed; }
-    .box { border: 1px solid #e5e9ed; border-radius: 16px; padding: 16px; margin-top: 14px; }
-    .label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #7c8791; margin-bottom: 7px; }
-    .text { min-height: 30px; line-height: 1.55; }
-    .notice { margin-top: 20px; color: #6d7780; font-size: 13px; line-height: 1.5; }
+    :root {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f4f7f6;
+      background: #0c1112;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 50% 15%, rgba(106, 145, 129, .18), transparent 34%),
+        #0c1112;
+    }
+    .shell {
+      width: min(860px, calc(100% - 28px));
+      padding: 34px 0;
+    }
+    .card {
+      background: rgba(20, 27, 28, .92);
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 30px;
+      padding: 28px;
+      box-shadow: 0 30px 100px rgba(0,0,0,.35);
+      backdrop-filter: blur(18px);
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #91aa9f;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; font-size: clamp(30px, 6vw, 48px); line-height: 1; letter-spacing: -.04em; }
+    .sub { margin: 12px 0 0; max-width: 560px; color: #9eaaa8; line-height: 1.6; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 120px;
+      justify-content: center;
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+      color: #c8d2cf;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #737f7c; }
+    .dot.live { background: #63c58b; box-shadow: 0 0 16px rgba(99,197,139,.65); }
+    .call-area {
+      min-height: 320px;
+      display: grid;
+      place-items: center;
+      padding: 32px 0 24px;
+    }
+    #call {
+      width: 142px;
+      height: 142px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 50%;
+      color: white;
+      background: radial-gradient(circle at 35% 28%, #789d8c, #314b40 58%, #1d2a26 100%);
+      box-shadow: 0 0 0 0 rgba(99,197,139,.2), 0 22px 45px rgba(0,0,0,.4), inset 0 1px rgba(255,255,255,.15);
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+    }
+    #call:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.05); }
+    #call.active { animation: pulse 1.8s infinite; }
+    #call.end { background: radial-gradient(circle at 35% 28%, #a86c6c, #633b3b 58%, #311f1f 100%); }
+    #call:disabled { opacity: .65; cursor: default; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(99,197,139,.18), 0 22px 45px rgba(0,0,0,.4), inset 0 1px rgba(255,255,255,.15); }
+      50% { box-shadow: 0 0 0 25px rgba(99,197,139,0), 0 22px 45px rgba(0,0,0,.4), inset 0 1px rgba(255,255,255,.15); }
+    }
+    .timer { text-align: center; margin-top: -10px; color: #81908b; font-variant-numeric: tabular-nums; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .box {
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.025);
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 118px;
+    }
+    .label { color: #74817e; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; margin-bottom: 9px; }
+    .text { color: #dfe8e5; line-height: 1.6; }
+    .conversation { margin-top: 14px; }
+    #log { max-height: 220px; overflow: auto; display: grid; gap: 10px; }
+    .bubble { padding: 11px 13px; border-radius: 14px; line-height: 1.45; white-space: pre-wrap; }
+    .bubble.user { background: rgba(119,157,140,.11); border: 1px solid rgba(119,157,140,.12); }
+    .bubble.agent { background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.06); }
+    .bubble small { display: block; margin-bottom: 4px; color: #77837f; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .notice { margin-top: 18px; color: #6f7c78; font-size: 12px; line-height: 1.55; }
+    audio { width: 100%; margin-top: 14px; display: none; }
+    @media (max-width: 680px) {
+      .card { padding: 21px; border-radius: 24px; }
+      .top { flex-direction: column; }
+      .grid { grid-template-columns: 1fr; }
+      .call-area { min-height: 270px; }
+    }
   </style>
 </head>
 <body>
-  <main class="card">
-    <h1>NahaLabs Lesotho Sesotho AI Voice Agent</h1>
-    <div class="sub">Browser prototype — speak, listen, and verify the complete voice loop.</div>
-    <div class="status"><span id="dot" class="dot"></span><span id="status">Ready</span></div>
+  <main class="shell">
+    <section class="card">
+      <div class="top">
+        <div>
+          <p class="eyebrow">NahaLabs · Mosuoe</p>
+          <h1>Lesotho Sesotho<br />voice agent.</h1>
+          <p class="sub">A browser-based live call prototype. Speak naturally, interrupt the agent, and hear the response in the same session.</p>
+        </div>
+        <div class="status"><span id="dot" class="dot"></span><span id="status">Ready</span></div>
+      </div>
 
-    <div class="controls">
-      <button id="record">Start speaking</button>
-      <button id="stop" disabled>Stop</button>
-    </div>
+      <div class="call-area">
+        <div>
+          <button id="call" aria-label="Start voice call">Start call</button>
+          <div id="timer" class="timer">00:00</div>
+        </div>
+      </div>
 
-    <div class="box">
-      <div class="label">What the agent heard</div>
-      <div id="heard" class="text">—</div>
-    </div>
+      <div class="grid">
+        <div class="box">
+          <div class="label">Latest caller speech</div>
+          <div id="heard" class="text">—</div>
+        </div>
+        <div class="box">
+          <div class="label">Latest agent response</div>
+          <div id="response" class="text">—</div>
+        </div>
+      </div>
 
-    <div class="box">
-      <div class="label">Agent response</div>
-      <div id="response" class="text">—</div>
-    </div>
+      <div class="box conversation">
+        <div class="label">Conversation</div>
+        <div id="log"></div>
+      </div>
 
-    <audio id="player" controls style="width:100%; margin-top:18px"></audio>
+      <audio id="player" preload="auto"></audio>
 
-    <div class="notice">
-      Prototype target: Lesotho Sesotho. The current open models support Southern Sotho, but this build does not yet claim that the synthesized accent is uniquely Lesotho. That is the next validation stage with real Lesotho speakers.
-    </div>
+      <div class="notice">
+        Voice models currently provide Southern Sotho support. The prototype does not yet claim a uniquely Lesotho accent or dialect; that requires evaluation with verified Lesotho-speaker recordings.
+      </div>
+    </section>
   </main>
 
 <script>
-  const API_BASE = 'https://mosuoe-sesotho-tts.onrender.com';
-  let stream;
-  let audioContext;
-  let source;
-  let processor;
-  let silentGain;
-  let chunks = [];
-  let history = [];
+  const API_BASE = window.location.origin;
+  const WS_BASE = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
-  const recordBtn = document.getElementById('record');
-  const stopBtn = document.getElementById('stop');
+  const callBtn = document.getElementById('call');
   const statusEl = document.getElementById('status');
   const dot = document.getElementById('dot');
+  const timerEl = document.getElementById('timer');
   const heard = document.getElementById('heard');
   const response = document.getElementById('response');
+  const log = document.getElementById('log');
   const player = document.getElementById('player');
 
-  function setStatus(text, live=false) {
+  let callId = null;
+  let socket = null;
+  let micStream = null;
+  let audioContext = null;
+  let source = null;
+  let processor = null;
+  let silentGain = null;
+  let callStartedAt = null;
+  let timerHandle = null;
+  let playbackUrl = null;
+  let callActive = false;
+
+  function setStatus(text, live = false) {
     statusEl.textContent = text;
     dot.classList.toggle('live', live);
   }
 
-  recordBtn.onclick = async () => {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      source = audioContext.createMediaStreamSource(stream);
-      processor = audioContext.createScriptProcessor(4096, 1, 1);
-      silentGain = audioContext.createGain();
-      silentGain.gain.value = 0;
-      chunks = [];
-      processor.onaudioprocess = e => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
-      source.connect(processor);
-      processor.connect(silentGain);
-      silentGain.connect(audioContext.destination);
-      recordBtn.disabled = true;
-      stopBtn.disabled = false;
-      setStatus('Listening…', true);
-    } catch (err) {
-      setStatus('Microphone permission failed');
-      alert(err.message || err);
+  function formatTime(totalSeconds) {
+    const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const seconds = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  }
+
+  function startTimer() {
+    callStartedAt = Date.now();
+    timerHandle = window.setInterval(() => {
+      timerEl.textContent = formatTime((Date.now() - callStartedAt) / 1000);
+    }, 250);
+  }
+
+  function stopTimer() {
+    if (timerHandle) window.clearInterval(timerHandle);
+    timerHandle = null;
+    timerEl.textContent = '00:00';
+  }
+
+  function addMessage(role, text) {
+    if (!text) return;
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${role === 'user' ? 'user' : 'agent'}`;
+    const label = document.createElement('small');
+    label.textContent = role === 'user' ? 'You' : 'Mosuoe';
+    const body = document.createElement('div');
+    body.textContent = text;
+    bubble.append(label, body);
+    log.appendChild(bubble);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function stopPlayback() {
+    try { player.pause(); } catch (_) {}
+    player.currentTime = 0;
+    if (playbackUrl) {
+      URL.revokeObjectURL(playbackUrl);
+      playbackUrl = null;
     }
-  };
+    player.removeAttribute('src');
+    player.load();
+  }
 
-  stopBtn.onclick = async () => {
-    stopBtn.disabled = true;
-    setStatus('Processing…', false);
-    processor.disconnect();
-    source.disconnect();
-    silentGain.disconnect();
-    stream.getTracks().forEach(t => t.stop());
-
-    const wav = encodeWav(chunks, audioContext.sampleRate);
-    const form = new FormData();
-    form.append('audio', wav, 'caller.wav');
-    form.append('history', JSON.stringify(history));
-
+  async function playAudioBase64(encoded) {
+    stopPlayback();
+    const raw = atob(encoded);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'audio/wav' });
+    playbackUrl = URL.createObjectURL(blob);
+    player.src = playbackUrl;
     try {
-      const res = await fetch(`${API_BASE}/api/turn`, { method: 'POST', body: form });
-      if (!res.ok) {
-        const detail = await res.text();
-        throw new Error(detail);
-      }
-
-      const transcript = decodeHexHeader(res.headers.get('X-Transcript'));
-      const agentText = decodeHexHeader(res.headers.get('X-Response-Text'));
-      heard.textContent = transcript || '—';
-      response.textContent = agentText || '—';
-      history.push({ role: 'user', text: transcript });
-      history.push({ role: 'model', text: agentText });
-
-      const audioBlob = await res.blob();
-      player.src = URL.createObjectURL(audioBlob);
       await player.play();
-      setStatus('Ready');
+      if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'playback_started' }));
+      setStatus('Speaking…', true);
     } catch (err) {
-      setStatus('Voice turn failed');
-      alert(err.message || err);
-    } finally {
-      recordBtn.disabled = false;
+      setStatus('Tap to enable audio');
+      console.warn('Audio playback was blocked:', err);
     }
+  }
+
+  player.onended = () => {
+    if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'playback_finished' }));
+    setStatus('Listening…', true);
   };
 
-  function decodeHexHeader(hex) {
-    if (!hex) return '';
-    const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(x => parseInt(x, 16)));
-    return new TextDecoder().decode(bytes);
+  function downsampleTo16k(input, inputRate) {
+    if (inputRate === 16000) return floatToPcm16(input);
+    const ratio = inputRate / 16000;
+    const outputLength = Math.max(1, Math.round(input.length / ratio));
+    const output = new Int16Array(outputLength);
+    for (let i = 0; i < outputLength; i++) {
+      const position = i * ratio;
+      const left = Math.floor(position);
+      const right = Math.min(left + 1, input.length - 1);
+      const weight = position - left;
+      const sample = input[left] * (1 - weight) + input[right] * weight;
+      const clamped = Math.max(-1, Math.min(1, sample));
+      output[i] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
+    }
+    return output;
   }
 
-  function encodeWav(buffers, sampleRate) {
-    let length = buffers.reduce((n, b) => n + b.length, 0);
-    const buffer = new ArrayBuffer(44 + length * 2);
-    const view = new DataView(buffer);
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + length * 2, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(view, 36, 'data');
-    view.setUint32(40, length * 2, true);
+  function floatToPcm16(input) {
+    const output = new Int16Array(input.length);
+    for (let i = 0; i < input.length; i++) {
+      const sample = Math.max(-1, Math.min(1, input[i]));
+      output[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+    }
+    return output;
+  }
 
-    let offset = 44;
-    for (const chunk of buffers) {
-      for (let i = 0; i < chunk.length; i++) {
-        const s = Math.max(-1, Math.min(1, chunk[i]));
-        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-        offset += 2;
+  function pcm16ToBase64(pcm) {
+    const bytes = new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+  }
+
+  function startMicrophone() {
+    const inputRate = audioContext.sampleRate;
+    source = audioContext.createMediaStreamSource(micStream);
+    processor = audioContext.createScriptProcessor(4096, 1, 1);
+    silentGain = audioContext.createGain();
+    silentGain.gain.value = 0;
+
+    processor.onaudioprocess = event => {
+      if (!callActive || !socket || socket.readyState !== WebSocket.OPEN) return;
+      const input = event.inputBuffer.getChannelData(0);
+      const pcm = downsampleTo16k(input, inputRate);
+      socket.send(JSON.stringify({ type: 'audio', audio: pcm16ToBase64(pcm) }));
+    };
+
+    source.connect(processor);
+    processor.connect(silentGain);
+    silentGain.connect(audioContext.destination);
+  }
+
+  function stopMicrophone() {
+    if (processor) processor.disconnect();
+    if (source) source.disconnect();
+    if (silentGain) silentGain.disconnect();
+    processor = null;
+    source = null;
+    silentGain = null;
+    if (micStream) micStream.getTracks().forEach(track => track.stop());
+    micStream = null;
+    if (audioContext) audioContext.close().catch(() => {});
+    audioContext = null;
+  }
+
+  async function startCall() {
+    if (callActive) return;
+    callActive = true;
+    callBtn.disabled = true;
+    callBtn.classList.add('active', 'end');
+    callBtn.textContent = 'End call';
+    setStatus('Requesting microphone…');
+    log.innerHTML = '';
+    heard.textContent = '—';
+    response.textContent = '—';
+
+    try {
+      callId = window.crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const startResponse = await fetch(`${API_BASE}/api/calls/${callId}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (!startResponse.ok) throw new Error(await startResponse.text());
+
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+      });
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+      await audioContext.resume();
+
+      socket = new WebSocket(`${WS_BASE}/api/calls/${callId}/stream`);
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ type: 'start', sample_rate: 16000 }));
+        startMicrophone();
+        startTimer();
+        setStatus('Connecting voice…', true);
+      };
+
+      socket.onmessage = async event => {
+        const payload = JSON.parse(event.data);
+        if (payload.type === 'ready') {
+          setStatus('Connecting voice…', true);
+        } else if (payload.type === 'started') {
+          setStatus('Speaking…', true);
+        } else if (payload.type === 'speech_started') {
+          setStatus('Listening…', true);
+        } else if (payload.type === 'processing') {
+          setStatus('Thinking…', true);
+        } else if (payload.type === 'transcript') {
+          heard.textContent = payload.text || '—';
+          addMessage('user', payload.text);
+        } else if (payload.type === 'response') {
+          response.textContent = payload.text || '—';
+          addMessage('agent', payload.text);
+        } else if (payload.type === 'audio') {
+          await playAudioBase64(payload.audio);
+        } else if (payload.type === 'interrupt') {
+          stopPlayback();
+          setStatus('Listening…', true);
+        } else if (payload.type === 'listening') {
+          setStatus('Listening…', true);
+        } else if (payload.type === 'stopped') {
+          cleanupCall(false);
+        } else if (payload.type === 'error') {
+          console.error(payload.detail);
+          setStatus('Voice error');
+        }
+      };
+
+      socket.onerror = () => setStatus('Voice connection error');
+      socket.onclose = () => {
+        if (callActive) cleanupCall(false);
+      };
+    } catch (err) {
+      console.error(err);
+      setStatus('Could not start call');
+      await cleanupCall(false);
+      alert(err.message || 'Unable to start the voice call.');
+    } finally {
+      if (!callActive) {
+        callBtn.disabled = false;
       }
     }
-    return new Blob([view], { type: 'audio/wav' });
   }
 
-  function writeString(view, offset, value) {
-    for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
+  async function endCall() {
+    if (!callActive) return;
+    setStatus('Ending call…');
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'stop' }));
+    }
+    if (callId) {
+      fetch(`${API_BASE}/api/calls/${callId}`, { method: 'DELETE', keepalive: true }).catch(() => {});
+    }
+    cleanupCall(true);
   }
+
+  async function cleanupCall(resetStatus = true) {
+    callActive = false;
+    stopTimer();
+    stopPlayback();
+    stopMicrophone();
+    if (socket) {
+      try { socket.close(); } catch (_) {}
+    }
+    socket = null;
+    callId = null;
+    callBtn.disabled = false;
+    callBtn.classList.remove('active', 'end');
+    callBtn.textContent = 'Start call';
+    if (resetStatus) setStatus('Ready');
+  }
+
+  callBtn.onclick = () => callActive ? endCall() : startCall();
 </script>
 </body>
 </html>
