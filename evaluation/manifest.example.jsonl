@@ -1,0 +1,2 @@
+{"audio":"evaluation/audio/001.wav","reference":"Lumela, ke kopa thuso.","speaker_id":"S001","district":"Maseru","environment":"quiet","phone_like":false}
+{"audio":"evaluation/audio/002.wav","reference":"Ke batla ho tseba ka tshebeletso ena.","speaker_id":"S002","district":"Leribe","environment":"office","phone_like":true}
