@@ -10,6 +10,4 @@ def test_edit_distance_counts_word_errors():
         ["ke", "a", "bua"],
         ["ke", "bua", "le"]
     )
-    assert substitutions == 1
-    assert insertions == 1
-    assert deletions == 1
+    assert (substitutions, insertions, deletions) == (0, 1, 1)
