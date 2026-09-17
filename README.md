@@ -6,12 +6,19 @@ Prototype for a voice agent that can **hear spoken Sesotho and answer in Sesotho
 
 `Browser microphone -> ASR -> Sesotho conversation brain -> Sesotho TTS -> browser speaker`
 
+## Live-call loop
+
+`Caller -> Telephony/media gateway -> PCM audio stream -> VAD -> ASR -> conversation brain -> TTS -> caller`
+
+The live prototype exposes a provider-neutral WebSocket at `/api/calls/{call_id}/stream`. See `docs/REALTIME_STREAM.md` for the message contract.
+
 The first implementation uses:
 
 - **ASR:** `UBC-NLP/Simba-H` by default. It is a 94M-parameter African ASR model whose language coverage includes Southern Sotho (`sot`).
 - **TTS:** `UBC-NLP/Simba-TTS-sot`, a dedicated Southern Sotho TTS model.
 - **Brain:** Google Gemini through the `google-genai` SDK. The brain is instructed to use Lesotho Sesotho conventions and to avoid pretending that South African Sesotho is the target accent.
-- **Audio:** WAV microphone capture in the browser, CPU inference by default.
+- **Audio:** WAV microphone capture in the browser, with 16 kHz mono PCM for the realtime stream.
+- **VAD:** dependency-free energy-based detector for the prototype, replaceable after field evaluation.
 
 ## Why this is deliberately not called "Lesotho-trained" yet
 
@@ -72,12 +79,16 @@ uv run python evaluation/evaluate_asr.py --manifest evaluation/manifest.jsonl
 
 The benchmark reports per-recording WER and an aggregate WER in `evaluation/results/asr_report.json`. It deliberately does not hard-code a final production threshold until representative Lesotho recordings have been collected and reviewed.
 
-## Next engineering stages
+## Realtime voice stream
+
+The WebSocket stream accepts 16 kHz mono signed 16-bit PCM frames and automatically detects utterance boundaries. During agent playback, the client can report `playback_started`; caller speech then triggers an `interrupt` event so the client/carrier can stop current TTS playback. See `docs/REALTIME_STREAM.md` for the protocol.
+
+## Engineering stages
 
 1. Collect a small, consented **Lesotho speech validation set** and benchmark ASR.
 2. Benchmark TTS for naturalness, pronunciation and Lesotho linguistic conventions.
-3. Add barge-in / interruption handling and voice activity detection.
-4. Add a provider-neutral telephony/media-stream adapter, then connect a suitable SIP/telephony provider.
+3. **Implemented:** realtime PCM frames, automatic turn detection and barge-in signalling.
+4. Connect a provider-neutral telephony/media adapter, then connect a suitable SIP/telephony provider.
 5. Add call logging, consent/disclosure, escalation-to-human and audit trails.
 6. Build a ministerial demo scenario around a non-sensitive public-service workflow.
 
